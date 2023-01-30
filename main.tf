@@ -97,7 +97,7 @@ resource "azurerm_public_ip" "pip" {
   resource_group_name = azurerm_resource_group.rg2.name
   location            = var.location
   allocation_method   = "Static"
-  sku                 = "Standard" #Default is Basic and cannot work
+  sku                 = "Standard" #Default is Basic and has to match lb SKU !!
 
   tags = {
     environment = "Production"
@@ -107,7 +107,7 @@ resource "azurerm_lb" "lb" {
   name                = "TestLoadBalancer"
   location            = var.location
   resource_group_name = azurerm_resource_group.rg2.name
-  sku                 = "Standard" #Default is Basic and cannot work
+  sku                 = "Standard" #Default is Basic and doesn't accept seperate VMs
 
   frontend_ip_configuration {
     name                 = "PublicIPAddress"
@@ -134,23 +134,23 @@ resource "azurerm_lb_rule" "rulelb" {
   backend_port                   = 80
   frontend_ip_configuration_name = "PublicIPAddress"
   probe_id                       = azurerm_lb_probe.probelb.id
-  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.backend_address_pool_id]
+  backend_address_pool_ids       = [azurerm_lb_backend_address_pool.backendlb.id]
 }
 
 resource "azurerm_network_interface_backend_address_pool_association" "backend_assoc1" {
   network_interface_id    = module.vm1.nic_id
-  ip_configuration_name   = "testconfiguration1"
+  ip_configuration_name   = "internal" # must match with NIC Ip configuration that in the module's main.tf
   backend_address_pool_id = azurerm_lb_backend_address_pool.backendlb.id
 }
 
 resource "azurerm_network_interface_backend_address_pool_association" "backend_assoc2" {
   network_interface_id    = module.vm2.nic_id
-  ip_configuration_name   = "testconfiguration1"
+  ip_configuration_name   = "internal"
   backend_address_pool_id = azurerm_lb_backend_address_pool.backendlb.id
 }
-resource "azurerm_virtual_machine_extension" "vm-extensions" {
+resource "azurerm_virtual_machine_extension" "vm1-extensions" {
     name                  = "vm01-ext-webserver"
-    virtual_machine_id    = module.vm.vm_id
+    virtual_machine_id    = module.vm1.vm_id
     publisher             = "Microsoft.Compute"
     type                  = "CustomScriptExtension"
     type_handler_version = "1.10"
@@ -161,3 +161,15 @@ resource "azurerm_virtual_machine_extension" "vm-extensions" {
         SETTINGS
 }
 
+resource "azurerm_virtual_machine_extension" "vm2-extensions" {
+    name                  = "vm01-ext-webserver"
+    virtual_machine_id    = module.vm2.vm_id
+    publisher             = "Microsoft.Compute"
+    type                  = "CustomScriptExtension"
+    type_handler_version = "1.10"
+    settings = <<SETTINGS
+        {
+        "commandToExecute": "powershell Add-WindowsFeature Web-Server"
+        }
+        SETTINGS
+}
