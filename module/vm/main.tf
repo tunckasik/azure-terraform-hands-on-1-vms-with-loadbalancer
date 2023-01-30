@@ -1,4 +1,4 @@
-resource "azurerm_windows_virtual_machine" "vm1" {
+resource "azurerm_windows_virtual_machine" "vm" {
   name                = var.vm_name
   resource_group_name = var.rg_name
   location            = var.location
